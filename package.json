@@ -1,0 +1,32 @@
+{
+  "name": "leave-management",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/contracts",
+    "apps/api",
+    "apps/web"
+  ],
+  "engines": {
+    "node": "^22.22.3 || ^24.15.0"
+  },
+  "scripts": {
+    "setup": "node scripts/setup-env.mjs",
+    "dev": "npm run build --workspace @leave/contracts && concurrently --kill-others-on-fail --names api,web \"npm run start:dev --workspace @leave/api\" \"npm start --workspace @leave/web\"",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run build --workspace @leave/contracts && npm run test:cov --workspace @leave/api && npm test --workspace @leave/web -- --watch=false --coverage",
+    "test:unit": "npm run build --workspace @leave/contracts && npm test --workspace @leave/api && npm test --workspace @leave/web -- --watch=false",
+    "test:integration": "npm run test:integration --workspace @leave/api",
+    "lint": "oxlint --deny-warnings apps/api/src apps/api/test apps/web/src packages/contracts/src scripts",
+    "typecheck": "npm run build --workspace @leave/contracts && tsc --noEmit --project apps/api/tsconfig.json && tsc --noEmit --project apps/web/tsconfig.spec.json",
+    "db:migrate": "npm run db:migrate --workspace @leave/api",
+    "db:seed": "npm run db:seed --workspace @leave/api"
+  },
+  "devDependencies": {
+    "@angular/cli": "22.3.0",
+    "@nestjs/cli": "12.0.14",
+    "concurrently": "^9.2.1",
+    "oxlint": "^1.58.0",
+    "typescript": "~6.0.3"
+  }
+}

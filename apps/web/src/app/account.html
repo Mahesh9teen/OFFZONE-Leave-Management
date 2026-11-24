@@ -1,0 +1,40 @@
+@if (error()) { <div class="alert error" role="alert">{{ error() }}</div> }
+@if (success()) { <div class="alert success" role="status">{{ success() }}</div> }
+@if (profile(); as account) {
+  @if (account.sharedDemo) { <div class="alert info"><app-icon name="shield" /><span>This workspace has open demo access. Use fictional contact details, not real personal or medical information.</span></div> }
+  <section class="card profile-heading">
+    <app-profile-avatar [user]="account.user" [large]="true" />
+    <div><span class="eyebrow">YOUR OFFZONE IDENTITY</span><h2>{{ account.user.name }}</h2><p class="muted">{{ account.jobTitle || 'Your workspace account details.' }}</p><span class="status approved">{{ account.user.role }}</span></div>
+  </section>
+  <div class="account-grid">
+    <section class="card settings-card">
+      <h2>Personal details</h2>
+      <dl class="identity-details"><div><dt>Employee / account ID</dt><dd>{{ account.user.id }}</dd></div><div><dt>Email address</dt><dd>{{ account.user.email }}</dd></div><div><dt>Team</dt><dd>{{ account.teamName || 'Workspace administration' }}</dd></div></dl>
+      @if (account.user.role === 'employee') {
+        <form #profileForm="ngForm" (ngSubmit)="save()">
+          <fieldset [disabled]="busy()">
+            <label>Full name<input name="profileName" [(ngModel)]="draft.name" minlength="2" maxlength="100" required autocomplete="name"></label>
+            <label>Job title<input name="jobTitle" [(ngModel)]="draft.jobTitle" maxlength="100" autocomplete="organization-title" placeholder="e.g. Product designer"></label>
+            <label>Phone number<input name="phone" type="tel" [(ngModel)]="draft.phone" maxlength="32" autocomplete="tel" placeholder="Optional contact number"></label>
+            <button class="button primary" type="submit" [disabled]="profileForm.invalid || busy()"><app-icon name="check" />Save profile</button>
+          </fieldset>
+        </form>
+      } @else { <p class="muted small">Account ID, email, role, and team are managed by the workspace administrator.</p> }
+    </section>
+    <section class="card settings-card">
+      <h2>Account security</h2>
+      @if (account.demoSession) { <div class="alert info section-copy">Open demo sessions cannot change shared passwords. Sign out and use account credentials to change your password.</div> }
+      @else {
+        <p class="muted small section-copy">Use at least 12 characters. Changing your password signs out other sessions.</p>
+        <form #passwordForm="ngForm" data-form="password" (ngSubmit)="changePassword()">
+          <fieldset [disabled]="busy()">
+            <label>Current password<input name="currentPassword" type="password" [(ngModel)]="password.currentPassword" maxlength="256" required autocomplete="current-password"></label>
+            <label>New password<input name="newPassword" type="password" [(ngModel)]="password.newPassword" minlength="12" maxlength="256" required autocomplete="new-password"></label>
+            <label>Confirm new password<input name="confirmation" type="password" [(ngModel)]="password.confirmation" minlength="12" maxlength="256" required autocomplete="new-password"></label>
+            <button class="button secondary" type="submit" [disabled]="passwordForm.invalid || busy()"><app-icon name="shield" />Change password</button>
+          </fieldset>
+        </form>
+      }
+    </section>
+  </div>
+} @else { <section class="card empty-state"><h2>{{ loading() ? 'Loading your account...' : 'Your account could not be loaded.' }}</h2>@if (!loading()) { <button class="button primary" (click)="load()">Try again</button> }</section> }

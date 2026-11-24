@@ -1,0 +1,48 @@
+<div class="calendar-layout">
+  <section class="card calendar-card">
+    <div class="section-header"><div><h2>{{ months[month()] }} {{ data().year }}</h2><p class="muted small">A shared view of the team's time away.</p></div><div class="calendar-controls">
+      <label class="sr-only" for="calendar-team">Calendar team</label><select id="calendar-team" [ngModel]="teamId()" (ngModelChange)="teamId.set($event)">@for (team of data().teams; track team.id) { <option [value]="team.id">{{ team.name }}</option> }</select>
+      <button class="icon-button" aria-label="Previous month" [disabled]="month() === 0" (click)="changeMonth(month() - 1)"><app-icon name="left" /></button><button class="icon-button" aria-label="Next month" [disabled]="month() === 11" (click)="changeMonth(month() + 1)"><app-icon name="right" /></button>
+    </div></div>
+    <div class="calendar-month-picker"><label for="calendar-month">Jump to month</label><select id="calendar-month" [ngModel]="month()" (ngModelChange)="changeMonth($event)">@for (name of months; track name; let index = $index) { <option [ngValue]="index">{{ name }}</option> }</select></div>
+    <div class="calendar-export"><button type="button" class="button secondary compact" data-action="export-calendar" [disabled]="!teamId()" (click)="exportCalendar()"><app-icon name="download" />Export calendar (.ics)</button><span class="small muted">Selected month/team; approved and tentative pending leave. AM 09:00-13:00, PM 13:00-17:00 UTC.</span></div>
+    @if (exportError()) { <div class="alert error" role="alert">{{ exportError() }}</div> }
+    @if (canSelectLeave()) {
+      <section class="calendar-selection" aria-label="Select leave dates">
+        <label class="calendar-period">Calendar booking period<select [ngModel]="period()" (ngModelChange)="changePeriod($event)"><option value="full">Full day / date range</option><option value="am">Morning (AM) - 0.5 day</option><option value="pm">Afternoon (PM) - 0.5 day</option></select></label>
+        <div class="selection-heading"><app-icon name="calendar" /><div><h3>Plan leave from your calendar</h3><p>{{ period() === 'full' ? 'Tap one available date for a single day, or tap a start and end date for a range. A third tap starts a new selection.' : 'Choose one available date for the selected half-day. AM and PM are checked separately.' }}</p></div></div>
+        <div class="selection-summary" aria-live="polite">
+          @if (selectedRange(); as range) {
+            <strong>{{ dateLabel(range.startDate) }}@if (range.endDate !== range.startDate) { &ndash; {{ dateLabel(range.endDate) }} }</strong>
+            <span>{{ selectionSummary().workingDays }} working {{ selectionSummary().workingDays === 1 ? 'day' : 'days' }} selected. Weekends and holidays are excluded.</span>
+          } @else { <span>No dates selected yet.</span> }
+        </div>
+        <div class="selection-actions"><button type="button" class="button secondary compact" data-action="clear-dates" [disabled]="!selectedRange() && !selectionNotice()" (click)="clearSelection()">Clear selection</button><button type="button" class="button primary compact" data-action="request-selected-dates" [disabled]="!canRequestSelection()" (click)="requestSelectedDates()"><app-icon name="plus" />Request selected dates</button></div>
+        <p class="selection-disclaimer">Calendar availability is advisory. Choose a leave type in the form to check your balance; the server checks all rules again before saving.</p>
+      </section>
+    }
+    @if (selectionError()) { <div class="alert error calendar-selection-error" role="alert">{{ selectionError() }}</div> }
+    <div class="weekdays">@for (day of ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']; track day) { <span>{{ day }}</span> }</div>
+    <div class="calendar-grid">
+      @for (cell of cells(); track cell.date) {
+        <button type="button" class="calendar-day" [attr.data-date]="cell.date" [attr.data-availability]="cell.availability.state" [class.outside]="!cell.inMonth" [class.weekend]="cell.weekend" [class.today]="cell.isToday" [class.selected]="!canSelectLeave() && selected().date === cell.date" [class.holiday]="cell.holiday" [class.in-selection]="canSelectLeave() && cell.inSelection" [class.range-edge]="canSelectLeave() && (selectedRange()?.startDate === cell.date || selectedRange()?.endDate === cell.date)" [disabled]="!cell.inMonth" [attr.aria-pressed]="canSelectLeave() ? cell.inSelection : selected().date === cell.date" [attr.aria-label]="dateLabel(cell.date) + ', ' + cell.people.length + ' people away' + (cell.holiday ? ', ' + cell.holiday : '') + (canSelectLeave() && cell.inMonth ? ', ' + cell.availability.label : '')" (click)="selectDate(cell.date)">
+          <span class="day-number">{{ cell.day }}</span>
+          @if (cell.holiday && !canSelectLeave()) { <span class="holiday-marker" [title]="cell.holiday">Holiday</span> }
+          @if (cell.entries.length) { <div class="calendar-avatars">@for (entry of cell.people.slice(0, 3); track entry.employeeId) { <span class="avatar mini" [class.tentative]="entry.status === 'pending'">{{ initials(entry.employeeName) }}</span> }</div><span class="away-count">{{ cell.people.length }} away</span> }
+          @if (canSelectLeave() && cell.inMonth) { <span class="calendar-availability" [class.available]="cell.availability.state === 'available'" [class.blocked]="cell.availability.state === 'blocked'">{{ cell.availability.label }}</span> }
+        </button>
+      }
+    </div>
+    <div class="calendar-legend"><span><i class="legend-dot approved"></i>Approved</span><span><i class="legend-dot pending"></i>Pending</span><span><i class="legend-dot holiday"></i>Public holiday</span><span class="muted">All dates use UTC.</span></div>
+  </section>
+  <aside class="calendar-aside">
+    <section class="card day-detail"><span class="eyebrow">DAILY COVERAGE</span><h2>{{ dateLabel(selected().date) }}</h2>
+      @if (selected().holiday) { <div class="alert info small">{{ selected().holiday }}</div> }
+      @if (canSelectLeave()) { <p class="day-availability" role="status">{{ selected().availability.detail }}</p> }
+      <div class="coverage-periods"><div class="coverage-number">{{ morningAway() }}<span> / {{ data().settings.maxTeamOff }} AM</span></div><div class="coverage-number">{{ afternoonAway() }}<span> / {{ data().settings.maxTeamOff }} PM</span></div></div>
+      <p class="small muted">@if (morningAway() > data().settings.maxTeamOff || afternoonAway() > data().settings.maxTeamOff) { Above the current limit. Existing reservations are preserved. } @else if (availableSlots() === 0) { At capacity in the selected period. Try another date or half-day. } @else { {{ availableSlots() }} more {{ availableSlots() === 1 ? 'person can' : 'people can' }} be off in the selected period. }</p>
+      <div class="day-people">@for (entry of selected().entries; track entry.id) { <div class="day-person"><span class="avatar">{{ initials(entry.employeeName) }}</span><div><strong>{{ entry.employeeName }}</strong><small>{{ entry.leaveTypeName }} leave &middot; {{ periodLabels[entry.period || 'full'] }}</small><span class="status" [class]="entry.status">{{ entry.status }}</span></div></div> } @empty { <div class="empty-state small"><app-icon name="people" /><p>No team members have reserved leave on this day.</p></div> }</div>
+    </section>
+    <section class="card holiday-list"><h3>Public holidays &middot; {{ data().year }}</h3>@for (holiday of holidays(); track holiday.date) { <div><span>{{ holiday.name }}</span><small>{{ dateLabel(holiday.date) }}</small></div> } @empty { <p class="muted small">No public holidays configured for this year.</p> }</section>
+  </aside>
+</div>

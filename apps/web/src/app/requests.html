@@ -1,0 +1,50 @@
+<section class="card">
+  <div class="section-header request-tools">
+    <div><h2>{{ data().user.role === 'employee' ? 'Your time-off requests' : 'Team requests' }}</h2><p class="muted small">{{ filtered().length }} requests in {{ data().year }}. Pending requests already reserve days.</p></div>
+    <div class="filter-controls"><label class="sr-only" for="request-search">Search requests</label><input id="request-search" type="search" placeholder="Search requests..." [ngModel]="search()" (ngModelChange)="search.set($event)">
+      <label class="sr-only" for="status-filter">Filter by status</label><select id="status-filter" [ngModel]="status()" (ngModelChange)="status.set($event)"><option value="all">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="cancelled">Cancelled</option></select><app-export-csv [content]="csv()" [filename]="'offzone-requests-' + data().year + '.csv'" /></div>
+  </div>
+  <div class="table-scroll">
+    <table>
+      <thead><tr>@if (data().user.role !== 'employee') { <th scope="col">Employee</th> }<th scope="col">Leave type</th><th scope="col">Dates</th><th scope="col">Days</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+      <tbody>
+        @for (request of filtered(); track request.id) {
+          <tr>
+            @if (data().user.role !== 'employee') { <td><div class="person"><span class="avatar small">{{ initials(request.employeeName) }}</span><div><strong>{{ request.employeeName }}</strong><small>{{ request.teamName }}</small></div></div></td> }
+            <td><span class="type-label"><i></i>{{ request.leaveTypeName }}</span></td>
+            <td class="date-cell"><strong>{{ dateLabel(request.startDate) }}</strong>@if (request.endDate !== request.startDate) { <small>to {{ dateLabel(request.endDate) }}</small> }</td>
+            <td><strong>{{ requestDays(request) }}</strong>@if (request.period && request.period !== 'full') { <small class="period-label">{{ periodLabels[request.period] }}</small> }</td>
+            <td><details class="request-reason"><summary>{{ request.reason.slice(0, 30) }}{{ request.reason.length > 30 ? '...' : '' }}</summary><p>{{ request.reason }}</p>@if (request.decisionNote) { <p><strong>Decision note:</strong> {{ request.decisionNote }}</p> }</details></td>
+            <td><span class="status" [class]="request.status"><i></i>{{ request.status }}</span></td>
+            <td><div class="row-actions">
+              <button class="button compact secondary" (click)="documentRequest.set(request)" [attr.aria-label]="'Documents for ' + request.employeeName"><app-icon name="attachment" />Documents</button>
+              @if (data().user.role === 'employee' && request.status === 'pending' && request.startDate > data().today) {
+                <button class="button compact secondary" (click)="editRequested.emit(request)">Edit</button>
+              }
+              @if (data().user.role === 'manager' && request.status === 'pending') {
+                <button class="button compact approve" (click)="begin(request, 'approved')" [attr.aria-label]="'Approve request from ' + request.employeeName">Approve</button>
+                <button class="button compact ghost danger-text" (click)="begin(request, 'rejected')" [attr.aria-label]="'Reject request from ' + request.employeeName">Reject</button>
+              } @else if (data().user.role === 'employee' && (request.status === 'pending' || request.status === 'approved')) {
+                <button class="button compact ghost danger-text" (click)="begin(request, 'cancelled')">Cancel</button>
+              } @else { <span class="muted">-</span> }
+            </div></td>
+          </tr>
+        } @empty { <tr><td [attr.colspan]="data().user.role === 'employee' ? 6 : 7"><div class="empty-state"><app-icon name="requests" /><h3>No matching requests</h3><p>Try a different filter, year, or submit your next time-off request.</p></div></td></tr> }
+      </tbody>
+    </table>
+  </div>
+</section>
+@if (documentRequest(); as request) { <app-request-documents [request]="request" [user]="data().user" (closed)="documentRequest.set(null)" /> }
+@if (selection(); as selected) {
+  <app-modal label="Confirm leave decision" [busy]="busy()" (dismissed)="selection.set(null)">
+    <div class="modal-heading"><div><span class="eyebrow">LEAVE REQUEST</span><h2>{{ selected.action === 'approved' ? 'Approve this request?' : selected.action === 'rejected' ? 'Reject this request?' : 'Cancel this request?' }}</h2></div></div>
+    <p><strong>{{ selected.request.employeeName }}</strong> &middot; {{ selected.request.leaveTypeName }} &middot; {{ requestDays(selected.request) }} working days &middot; {{ periodLabels[selected.request.period || 'full'] }}</p>
+    <p class="muted">{{ dateLabel(selected.request.startDate) }} to {{ dateLabel(selected.request.endDate) }}</p>
+    <blockquote>{{ selected.request.reason }}</blockquote>
+    @if (selected.action === 'cancelled') { <div class="alert info">These days will be returned to the balance and released from team capacity.</div> }
+    @if (error()) { <div class="alert error" role="alert">{{ error() }}</div> }
+    <form (ngSubmit)="confirm()"><label>Note <span class="muted">(optional)</span><textarea name="decisionNote" [(ngModel)]="note" rows="3" maxlength="500" [disabled]="busy()"></textarea></label>
+      <div class="modal-actions"><button type="button" class="button secondary" [disabled]="busy()" (click)="selection.set(null)">Go back</button><button type="submit" class="button" [class.primary]="selected.action === 'approved'" [class.danger]="selected.action !== 'approved'" [disabled]="busy()">{{ busy() ? 'Saving...' : 'Confirm' }}</button></div>
+    </form>
+  </app-modal>
+}

@@ -1,0 +1,65 @@
+@if (starting()) {
+  <main class="boot-screen"><img class="brand-mark" src="favicon.svg" alt="OFFZONE"><p>Opening your workspace...</p></main>
+} @else if (!user()) {
+  <app-login [notice]="error()" (signedIn)="signedIn($event)" />
+} @else {
+  <div class="workspace-shell">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <aside class="sidebar">
+      <button class="brand" (click)="navigate('overview')" aria-label="OFFZONE overview"><img class="brand-mark" src="favicon.svg" alt=""><span>OFFZONE<small>LEAVE MANAGEMENT</small></span></button>
+      <span class="nav-caption">WORKSPACE</span>
+      <nav aria-label="Workspace navigation">
+        <button data-view="overview" [attr.aria-current]="view() === 'overview' ? 'page' : null" (click)="navigate('overview')"><app-icon name="overview" /><span>Overview</span></button>
+        <button data-view="requests" [attr.aria-current]="view() === 'requests' ? 'page' : null" (click)="navigate('requests')"><app-icon name="requests" /><span>{{ user()!.role === 'employee' ? 'My requests' : 'Team requests' }}</span>@if (pending()) { <span class="nav-badge">{{ pending() }}</span> }</button>
+        <button data-view="calendar" [attr.aria-current]="view() === 'calendar' ? 'page' : null" (click)="navigate('calendar')"><app-icon name="calendar" /><span>Team calendar</span></button>
+        <button data-view="balances" [attr.aria-current]="view() === 'balances' ? 'page' : null" (click)="navigate('balances')"><app-icon name="balances" /><span>Leave balances</span></button>
+        <button data-view="insights" [attr.aria-current]="view() === 'insights' ? 'page' : null" (click)="navigate('insights')"><app-icon name="people" /><span>Team insights</span></button>
+        <button data-view="analytics" [attr.aria-current]="view() === 'analytics' ? 'page' : null" (click)="navigate('analytics')"><app-icon name="balances" /><span>Monthly analytics</span></button>
+        <button data-view="profile" [attr.aria-current]="view() === 'profile' ? 'page' : null" (click)="navigate('profile')"><app-icon name="profile" /><span>{{ user()!.role === 'employee' ? 'My profile' : 'My account' }}</span></button>
+        @if (user()!.role === 'admin') {
+          <button data-view="people" [attr.aria-current]="view() === 'people' ? 'page' : null" (click)="navigate('people')"><app-icon name="people" /><span>People & teams</span></button>
+          <button data-view="settings" [attr.aria-current]="view() === 'settings' ? 'page' : null" (click)="navigate('settings')"><app-icon name="settings" /><span>Settings</span></button>
+        }
+      </nav>
+      <div class="sidebar-note"><span class="note-sun" aria-hidden="true">*</span><strong>A little time away<br>goes a long way.</strong><p>Your next good idea might start with a day off.</p></div>
+      <div class="sidebar-user"><button class="avatar-button" aria-label="Open my profile" (click)="navigate('profile')"><app-profile-avatar [user]="user()!" /></button><div><strong>{{ user()!.name }}</strong><span>{{ user()!.role }}</span></div><button class="icon-button" data-action="logout" aria-label="Sign out" [disabled]="signingOut()" (click)="logout()"><app-icon name="logout" /></button></div>
+    </aside>
+    <div class="workspace-main">
+      <header class="topbar"><div class="breadcrumb">Workspace <span>/</span> <strong>{{ title() }}</strong></div><div class="topbar-actions"><span class="live-indicator">All dates in UTC</span>@if (data()) { <app-notifications [revision]="notificationRevision()" (requestOpened)="openNotification($event)" /> }<label class="year-select">Year<select aria-label="Calendar year" [ngModel]="year()" (ngModelChange)="changeYear($event)" [disabled]="loading()">@for (year of years; track year) { <option [ngValue]="year">{{ year }}</option> }</select></label><button class="button ghost compact" [disabled]="loading()" (click)="refresh()">{{ loading() ? 'Refreshing...' : 'Refresh' }}</button></div></header>
+      <main id="main-content" class="page-content" tabindex="-1" [attr.aria-busy]="loading()">
+        <div class="page-heading"><div><span class="eyebrow">{{ data() ? dateLabel(data()!.today) : 'YOUR OFFZONE WORKSPACE' }}</span><h1>{{ view() === 'overview' ? 'Hello, ' + user()!.name.split(' ')[0] + '.' : title() }}</h1><p class="muted">{{ view() === 'overview' ? 'A little clarity for your time away.' : view() === 'requests' ? 'From the first plan to the final approval.' : view() === 'calendar' ? 'Plan your time off with the bigger picture in view.' : view() === 'balances' ? 'Know what you have. Plan what comes next.' : view() === 'profile' ? 'Your details and account security.' : view() === 'insights' ? 'A clear picture of upcoming leave and team capacity.' : view() === 'analytics' ? 'Understand leave patterns, one month at a time.' : 'Make your policies work for your people.' }}</p></div>@if (user()!.role === 'employee') { <button class="button primary" [disabled]="!data() || loading()" (click)="openRequest()"><app-icon name="plus" />Request leave</button> }</div>
+        @if (error()) { <div class="alert error" role="alert">{{ error() }}</div> }
+        @if (success()) { <div class="alert success" role="status"><app-icon name="check" />{{ success() }}</div> }
+        @if (data(); as workspace) {
+          @switch (view()) {
+            @case ('overview') {
+              <section class="welcome-banner"><div><span class="eyebrow">{{ user()!.role === 'employee' ? 'A HEALTHIER WORK-LIFE BALANCE' : 'A LITTLE PLANNING GOES A LONG WAY' }}</span><h2>{{ user()!.role === 'employee' ? 'Good work. Great breaks.' : 'Your team, in sync.' }}</h2><p>{{ user()!.role === 'employee' ? 'Your next recharge is just a request away. Find the right moment for you and your team.' : 'Keep approvals moving and coverage clear, so everyone has room to recharge.' }}</p><button class="text-button" (click)="navigate(user()!.role === 'manager' ? 'requests' : 'calendar')">{{ user()!.role === 'manager' ? 'Review team requests' : 'Explore the team calendar' }}<app-icon name="right" /></button></div><div class="banner-art" aria-hidden="true"><div class="art-sun"></div><div class="art-hill back"></div><div class="art-hill front"></div><span class="art-caption">a brighter balance.</span></div></section>
+              <section class="metric-grid" aria-label="Workspace summary">
+                <article class="card metric"><span class="metric-icon purple"><app-icon name="balances" /></span><div><span>{{ user()!.role === 'employee' ? (myBalances()[0]?.leaveTypeName ?? 'Leave') + ' remaining' : 'Employees in view' }}</span><strong>{{ user()!.role === 'employee' ? (myBalances()[0]?.remaining ?? 0) : workspace.employees.length }}<small>{{ user()!.role === 'employee' ? 'days' : 'people' }}</small></strong></div></article>
+                <article class="card metric"><span class="metric-icon amber"><app-icon name="clock" /></span><div><span>Pending requests</span><strong>{{ pending() }}<small>awaiting review</small></strong></div></article>
+                <article class="card metric"><span class="metric-icon green"><app-icon name="people" /></span><div><span>Away today</span><strong>{{ awayToday() }}<small>including pending</small></strong></div></article>
+                <article class="card metric"><span class="metric-icon rose"><app-icon name="calendar" /></span><div><span>Next public holiday</span><strong class="date-metric">{{ upcoming() ? dateLabel(upcoming()!.date) : 'Not set' }}</strong><small>{{ upcoming()?.name ?? 'Ask your admin to add dates' }}</small></div></article>
+              </section>
+              @if (user()!.role === 'employee') { <div class="section-title"><h2>Your leave balance <span>{{ workspace.year }}</span></h2><button class="text-button" (click)="navigate('balances')">View details<app-icon name="right" /></button></div><app-balance-cards [balances]="myBalances()" /> }
+              <div class="overview-bottom"><section class="card recent-card"><div class="section-header"><div><h2>{{ user()!.role === 'employee' ? 'Recent requests' : 'Latest team requests' }}</h2><p class="muted small">The latest from your {{ workspace.year }} leave history.</p></div><button class="text-button" (click)="navigate('requests')">View all<app-icon name="right" /></button></div>
+                @for (request of recent(); track request.id) { <div class="recent-row"><span class="request-date"><b>{{ request.startDate.slice(8) }}</b><small>{{ dateLabel(request.startDate).split(' ')[1] }}</small></span><div class="recent-description"><strong>{{ user()!.role === 'employee' ? request.leaveTypeName + ' leave' : request.employeeName }}</strong><small>{{ requestDays(request) }} working days &middot; {{ dateLabel(request.startDate) }}@if (request.period && request.period !== 'full') { &middot; {{ request.period.toUpperCase() }} }@if (user()!.role !== 'employee') { &middot; {{ request.leaveTypeName }} }</small></div><span class="status" [class]="request.status"><i></i>{{ request.status }}</span></div> } @empty { <div class="empty-state"><app-icon name="requests" /><h3>A fresh page</h3><p>No requests for this year yet.</p></div> }
+              </section><section class="card policy-card"><span class="eyebrow">GOOD TO KNOW</span><h2>A few simple rules.<br>A fairer balance.</h2><ul><li><app-icon name="clock" /><span><strong>{{ workspace.settings.minNoticeDays }} days' notice</strong><small>Plan ahead in calendar days.</small></span></li><li><app-icon name="people" /><span><strong>Up to {{ workspace.settings.maxTeamOff }} people off</strong><small>Per team, in each AM/PM period.</small></span></li><li><app-icon name="check" /><span><strong>Weekends are yours</strong><small>Holidays don't use your balance either.</small></span></li></ul></section></div>
+            }
+            @case ('requests') { <app-requests [data]="workspace" [focusRequestId]="focusedRequestId()" (changed)="refresh($event)" (editRequested)="editRequest($event)" /> }
+            @case ('calendar') { <app-team-calendar [data]="workspace" (leaveRequested)="openRequest($event)" /> }
+            @case ('balances') { <app-balances [data]="workspace" /> }
+            @case ('profile') { <app-account (changed)="refresh()" /> }
+            @case ('insights') { <app-team-insights [data]="workspace" /> }
+            @case ('analytics') { <app-leave-analytics [data]="workspace" /> }
+            @case ('people') { @if (user()!.role === 'admin') { <app-people (changed)="refresh()" /> } }
+            @case ('settings') { @if (user()!.role === 'admin') { <app-admin-settings [data]="workspace" (changed)="refresh($event)" (reload)="refresh()" /> } }
+          }
+          @if (requestOpen()) { <app-request-form [data]="workspace" [initialDates]="requestDates()" [existingRequest]="editingRequest()" (closed)="closeRequest()" (saved)="requestSaved()" /> }
+        } @else {
+          <section class="card empty-state"><app-icon name="overview" /><h2>{{ loading() ? 'Loading your workspace...' : 'Your workspace could not be loaded.' }}</h2>@if (!loading()) { <button class="button primary" (click)="refresh()">Try again</button> }</section>
+        }
+        <footer class="page-footer"><span>OFFZONE</span><small>Own your time. Find your zone.</small></footer>
+      </main>
+    </div>
+  </div>
+}

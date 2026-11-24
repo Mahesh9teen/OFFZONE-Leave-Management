@@ -1,0 +1,50 @@
+@if (error() && !editing()) { <div class="alert error" role="alert">{{ error() }}</div> }
+@if (success()) { <div class="alert success" role="status">{{ success() }}</div> }
+@if (data(); as directory) {
+  <div class="people-grid">
+    <section class="card settings-card">
+      <h2>Create an account</h2><p class="muted small section-copy">Create a manager for a new team first, then add its employees. New users sign in with their account credentials.</p>
+      <form #personForm="ngForm" (ngSubmit)="createPerson()">
+        <fieldset [disabled]="busy()">
+          <div class="form-grid"><label>Name<input name="newName" [(ngModel)]="newPerson.name" minlength="2" maxlength="100" required></label><label>Email<input name="newEmail" type="email" [(ngModel)]="newPerson.email" email maxlength="254" required></label></div>
+          <div class="form-grid"><label>Role<select name="newRole" [(ngModel)]="newPerson.role" (ngModelChange)="pickTeam()" required><option value="employee">Employee</option><option value="manager">Manager</option></select></label><label>Team<select name="newTeam" [(ngModel)]="newPerson.teamId" required><option value="" disabled>Choose an eligible team</option>@for (team of directory.teams; track team.id) { <option [value]="team.id" [disabled]="!teamAvailable(team, newPerson.role)">{{ team.name }}</option> }</select></label></div>
+          <div class="form-grid"><label>Job title<input name="newJobTitle" [(ngModel)]="newPerson.jobTitle" maxlength="100"></label><label>Phone<input name="newPhone" type="tel" [(ngModel)]="newPerson.phone" maxlength="32"></label></div>
+          <label>Initial password<input name="initialPassword" type="password" [(ngModel)]="newPerson.password" minlength="12" maxlength="256" required autocomplete="new-password"></label>
+          <button class="button primary" type="submit" [disabled]="personForm.invalid || busy()"><app-icon name="plus" />Create account</button>
+        </fieldset>
+      </form>
+    </section>
+    <section class="card settings-card">
+      <h2>{{ editingTeamId() ? 'Rename team' : 'Teams' }}</h2>
+      <form #teamForm="ngForm" class="team-create-form" (ngSubmit)="saveTeam()">
+        <label>Team name<input name="teamName" [(ngModel)]="teamName" minlength="2" maxlength="100" required [disabled]="busy()"></label>
+        <div class="row-actions"><button class="button secondary" type="submit" [disabled]="teamForm.invalid || busy()">{{ editingTeamId() ? 'Save team name' : 'Create team' }}</button>@if (editingTeamId()) { <button type="button" class="button ghost" (click)="cancelTeamEdit()" [disabled]="busy()">Cancel</button> }</div>
+      </form>
+      <div class="managed-teams">@for (team of directory.teams; track team.id) { <div><app-icon name="people" /><span><strong>{{ team.name }}</strong><small>{{ team.managerName || 'Manager needed' }} &middot; {{ team.employeeCount }} employees</small></span><button class="text-button" type="button" [disabled]="busy()" (click)="editTeam(team)">Rename</button></div> }</div>
+    </section>
+  </div>
+  <section class="card people-directory">
+    <div class="section-header"><div><h2>People directory</h2><p class="muted small">Manage contact details, active status, and eligible team assignments.</p></div><label class="directory-search">Search people<input type="search" [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="Name, email, or role"></label></div>
+    <div class="table-scroll"><table><thead><tr><th>Person</th><th>Role</th><th>Team</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+      @for (user of filtered(); track user.id) { <tr><td><div class="person"><span class="avatar small">{{ initials(user.name) }}</span><div><strong>{{ user.name }}</strong><small>{{ user.email }}</small></div></div></td><td class="capitalize">{{ user.role }}</td><td>{{ teamNameFor(user.teamId) }}</td><td><span class="status" [class.approved]="user.active" [class.cancelled]="!user.active">{{ user.active ? 'Active' : 'Inactive' }}</span></td><td>@if (user.role !== 'admin') { <button class="button secondary compact" [disabled]="busy()" (click)="editPerson(user)">Edit account</button> } @else { <span class="muted small">Protected admin</span> }</td></tr> }
+      @empty { <tr><td colspan="5" class="empty-state">No people match this search.</td></tr> }
+    </tbody></table></div>
+  </section>
+  <div class="policy-footnote"><strong>History stays trustworthy</strong><p>Account ID, email, and role are fixed after creation. Team changes are blocked once an employee has leave history. Managers with reports must stay active in their team. Resolve pending and upcoming approved leave before deactivating an employee.</p></div>
+} @else { <section class="card empty-state"><h2>{{ loading() ? 'Loading people and teams...' : 'The directory could not be loaded.' }}</h2>@if (!loading()) { <button class="button primary" (click)="load()">Try again</button> }</section> }
+@if (editing(); as person) {
+  <app-modal label="Edit account" [busy]="busy()" (dismissed)="editing.set(null)">
+    <div class="modal-heading"><div><span class="eyebrow">PEOPLE MANAGEMENT</span><h2>Edit {{ person.name }}</h2></div><button class="icon-button" aria-label="Close account editor" [disabled]="busy()" (click)="editing.set(null)"><app-icon name="close" /></button></div>
+    <p class="muted small">{{ person.email }} &middot; {{ person.role }}</p>
+    @if (error()) { <div class="alert error" role="alert">{{ error() }}</div> }
+    <form #editForm="ngForm" (ngSubmit)="updatePerson()">
+      <fieldset [disabled]="busy()">
+        <label>Name<input name="editName" [(ngModel)]="editDraft.name" minlength="2" maxlength="100" required></label>
+        <div class="form-grid"><label>Phone<input name="editPhone" type="tel" [(ngModel)]="editDraft.phone" maxlength="32"></label><label>Job title<input name="editJobTitle" [(ngModel)]="editDraft.jobTitle" maxlength="100"></label></div>
+        <label>Team<select name="editTeam" [(ngModel)]="editDraft.teamId" [disabled]="person.hasLeaveHistory || managerHasReports(person)" required>@for (team of data()?.teams; track team.id) { <option [value]="team.id" [disabled]="team.id !== person.teamId && !teamAvailable(team, person.role === 'manager' ? 'manager' : 'employee')">{{ team.name }}</option> }</select></label>
+        <label class="checkbox-label"><input name="editActive" type="checkbox" [(ngModel)]="editDraft.active" [disabled]="managerHasReports(person)">Account is active</label>
+        <div class="modal-actions"><button class="button secondary" type="button" (click)="editing.set(null)">Cancel</button><button class="button primary" type="submit" [disabled]="editForm.invalid || busy()">Save account</button></div>
+      </fieldset>
+    </form>
+  </app-modal>
+}
