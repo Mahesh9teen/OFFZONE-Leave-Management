@@ -19,7 +19,6 @@ OFFZONE is a full-stack leave-management application built with **Angular, NestJ
 - In-app leave notifications and private supporting documents.
 - CSV exports, upcoming leave summaries, and team availability insights.
 - Role-scoped monthly leave analytics and Outlook/Google-compatible calendar exports.
-- Capped carry-over from 2027, with March 31 expiry and preserved historical funding.
 - Automatic in-app approval reminders and optional, queued SMTP email notifications.
 - **1 admin, 2 managers, 8 employees, 3 leave types, 12 demo holidays, and exactly 40 seeded requests** in mixed states.
 - Automated unit and PostgreSQL/API tests, coverage gates, strict type checking, and CI.
